@@ -1,0 +1,16 @@
+1:
+  amt: 100
+  cur: USD
+  note: Regular Work
+2:
+  amt: 60
+  cur: USD
+  note: Open Source Discount
+sd1:
+  amt: 80
+  cur: AUD
+  note: Regular Work
+sd2:
+  amt: 50
+  cur: AUD
+  note: Open Source Discount

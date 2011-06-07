@@ -1,0 +1,60 @@
+NAME
+    YamlTime - YAML based Personal Time Tracking
+
+SYNOPSIS
+        > yt help
+
+DESCRIPTION
+    YamlTime is an application that allows you do your personal project time
+    tracking from the command line. It saves your data in plain text YAML
+    files. You can use a version control system (like git) to back up the
+    data.
+
+    YamlTime comes with a command line app called "yt" that does everything.
+
+COMMANDLINE USAGE
+    The following commands are supported.
+
+        yt                  - Show current yt status
+        yt help             - Get Help
+        yt init             - Create a new YamlTime store
+        yt new              - Start a new task
+        yt stop             - Stop the current task
+        yt go               - Restart the current task
+        yt edit <task>      - Edit a tasks yaml file
+        yt check <range>    - Check the data in the range
+        yt status <option>  - Show the current yt status
+        yt report <range> <style>
+                            - Create a report for a time period
+                              using a certain reporting style
+
+  Options
+    yt commands have the following options:
+
+    --from=<date_string>
+        Commands that need a time range, use this to set the start time. The
+        default is the previous midnight. A human friendly string can be
+        used, like: '3 days ago'.
+
+    --to=<date_string>
+        Commands that need a time range, use this to set the end time. The
+        default is now.
+
+    --style=<report-style>
+        This names a YamlTime reporting style. The default is CSV, which can
+        be used as a spreadsheet.
+
+SEE ALSO
+    *   YAML
+
+AUTHOR
+    Ingy döt Net
+
+COPYRIGHT AND LICENSE
+    Copyright (c) 2011. Ingy döt Net.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
+    See http://www.perl.com/perl/misc/Artistic.html
+
