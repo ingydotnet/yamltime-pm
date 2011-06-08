@@ -1,0 +1,6 @@
+# YamlTime commands will not run until you remove this line.
+Xunconfigured: 1
+
+# Your current timezone.
+# timezone: America/Los_Angeles
+timezone: Australia/Melbourne

@@ -1,12 +1,7 @@
-stratdat:
-  name: Strategic Data
-say:
-  name: SAY Media
-tor:
-  name: Tor
-acmeism:
-  name: Acmeism
+# These are keywords for the customers you track time for.
+acme:
+  name: ACME Inc
 self:
-  name: Ingy döt Net
-book:
-  name: YAML Book
+  name: Your Name
+misc:
+  name: Miscellaneous

@@ -12,27 +12,51 @@ package YamlTime;
 use 5.008003;
 
 our $VERSION = '0.01';
+our $Conf;
 
 use Mouse;
 extends 'MouseX::App::Cmd';
 
-#-----------------------------------------------------------------------------#
-package YamlTime::Command;
-use Mouse;
-extends qw(MouseX::App::Cmd::Command);
-
+use YamlTime::Conf;
+use YamlTime::Task;
 use YAML::XS 0.35 ();
-use IO::All 0.41;
+use IO::All 0.41 ();
 use DateTime 0.70 ();
 use DateTime::Format::Natural 0.94 ();
 use File::ShareDir 1.03 ();
+use Template::Toolkit::Simple 0.13 ();
+use Term::Prompt 1.04 ();
+
+use constant usage => 'YamlTime::Command';
+
+#-----------------------------------------------------------------------------#
+package YamlTime::Command;
+use Mouse;
+extends qw[MouseX::App::Cmd::Command];
+
+use IO::All;
 use Cwd qw[cwd abs_path];
+use Term::Prompt qw[prompt];
 use XXX;
 
-has config => (
+use constant text => <<'...';
+This is the YamlTime personal time tracker.
+
+Usage:
+
+    yt
+    yt <options> command
+    yt <options> new <task description>
+...
+
+has conf => (
     is => 'ro',
-    builder => 'config__',
     lazy => 1,
+    builder => sub {
+        my ($self) = @_;
+        return $YamlTime::Conf =
+            YamlTime::Conf->new(base => $self->base);
+    },
 );
 has base => (
     is => 'ro',
@@ -41,8 +65,23 @@ has base => (
 
 sub BUILD {
     my ($self) = @_;
+}
+
+sub validate_args {
+    my ($self) = @_;
     my $base = $self->base;
     chdir $base or $self->error("Can't chdir to '%s'", $base);
+    $self->conf unless ref($self) =~ /::init$/;
+}
+
+# A generic command abstract
+use constant abstract => 'abtract not yet defined :(';
+
+# A generic stub for command execution
+sub execute {
+    my ($self) = @_;
+    ((my $cmd = ref($self)) =~ s/.*://);
+    $self->error("'%s' not yet imlemented\n", $self->cmd);
 }
 
 #-----------------------------------------------------------------------------#
@@ -56,26 +95,14 @@ has from => (is => 'ro', isa => 'Str', default => $time - 24*3600);
 has to => (is => 'ro', isa => 'Str', default => $time);
 
 #-----------------------------------------------------------------------------#
-# status - Check the YamlTime system status
-package YamlTime::Command::status;
-use Mouse;
-extends qw(YamlTime::Command);
-
-use constant abstract => '';
-
-# sub execute {
-#     my ($self) = @_;
-# }
-
-#-----------------------------------------------------------------------------#
 # = YamlTime (yt) Commands
 
 # init - Initialize a new YamlTime repo
 package YamlTime::Command::init;
 use Mouse;
-extends qw(YamlTime::Command);
+extends qw[YamlTime::Command];
 
-use constant abstract => 'Initialize a new YamlTime repo';
+use constant abstract => 'Initialize a new YamlTime store directory';
 has force => (
     is => 'ro',
     isa => 'Bool',
@@ -97,90 +124,105 @@ sub execute {
 }
 
 #-----------------------------------------------------------------------------#
-# new - Start a new task/timer
 package YamlTime::Command::new;
 use Mouse;
-extends qw(YamlTime::Command);
+extends qw[YamlTime::Command];
 
-# sub execute {
-#     my ($self) = @_;
-# }
+use constant abstract => 'Create a new task and start the timer';
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    $self->error__in_progress
+        if $self->current_task and
+            $self->current_task->in_progress;
+
+    my $task = YamlTime::Task->new(id => undef);
+    $self->populate($task, $args);
+    $task->start;
+
+    $self->log("Started task " . $task->id);
+}
 
 #-----------------------------------------------------------------------------#
-## stop - Stop the timer on the current task
 package YamlTime::Command::stop;
 use Mouse;
-extends qw(YamlTime::Command);
+extends qw[YamlTime::Command];
 
-# sub execute {
-#     my ($self) = @_;
-# }
+use constant abstract => 'Stop the timer on a running task';
+
+sub execute {
+    my ($self) = @_;
+    my $task = $self->current_task or
+        $self->error__no_current_task;
+    $task->error__not_in_progress;
+}
 
 #-----------------------------------------------------------------------------#
 # go - Restart a task
 package YamlTime::Command::go;
 use Mouse;
-extends qw(YamlTime::Command);
+extends qw[YamlTime::Command];
 
-# sub execute {
-#     my ($self) = @_;
-# }
+use constant abstract => 'Restart the timer on a task';
 
 #-----------------------------------------------------------------------------#
 # check - Check that the YamlTime store for problems
 package YamlTime::Command::check;
 use Mouse;
-extends qw(YamlTime::Command);
+extends qw[YamlTime::Command];
 with 'YamlTime::TimeOpts';
 
-use constant abstract => '';
-
-# sub execute {
-#     my ($self) = @_;
-# }
+use constant abstract => 'Check the validity of a range of tasks';
 
 #-----------------------------------------------------------------------------#
-# report - Produce a billing report or invoice
 package YamlTime::Command::report;
 use Mouse;
 extends 'YamlTime::Command';
 with 'YamlTime::TimeOpts';
 
-sub execute {
-    my ($self) = @_;
-    $self->xxx;
-}
+use constant abstract => 'Produce a billing report from a range of tasks';
 
 #-----------------------------------------------------------------------------#
-# The rest of the base class
-package YamlTime::Command;
+package YamlTime::Command::status;
+use Mouse;
+extends qw[YamlTime::Command];
+with 'YamlTime::TimeOpts';
 
-use constant abstract => '';
+use constant abstract => 'Show the status of a range of tasks';
 
-sub config__ {
-    my ($self) = @_;
-    $self->error("No yt config file found in '%s'\n", $self->cwd)
-        unless -e "conf";
-}
+#-----------------------------------------------------------------------------#
+package YamlTime::Command::edit;
+use Mouse;
+extends qw[YamlTime::Command];
+with 'YamlTime::TimeOpts';
 
-sub cmd {
-    my ($self) = @_;
-    ((my $name = ref($self)) =~ s/.*://);
-    return $name;
-}
+use constant abstract => 'Edit a task\'s YAML in $EDITOR';
 
-sub execute {
-    my ($self) = @_;
-    $self->error("'%s' not yet imlemented\n", $self->cmd);
-}
+#-----------------------------------------------------------------------------#
+package YamlTime::Command::dump;
+use Mouse;
+extends qw[YamlTime::Command];
+with 'YamlTime::TimeOpts';
 
-sub error {
-    my ($self, $msg) = splice(@_, 0, 2);
-    die sprintf($msg, @_);
-}
+use constant abstract => 'Print a task file to STDOUT';
+
+#-----------------------------------------------------------------------------#
+package YamlTime::Command::store;
+use Mouse;
+extends qw[YamlTime::Command];
+with 'YamlTime::TimeOpts';
+
+use constant abstract => 'Write to a task file from STDIN';
 
 #-----------------------------------------------------------------------------#
 # Guts of the machine
+package YamlTime::Command;
+
+sub current_task {
+    my ($self) = @_;
+    return unless -e '_';
+    return YamlTime::Task->new(id => readlink('_'));
+}
 
 my $date_parser = DateTime::Format::Natural->new;
 
@@ -196,7 +238,7 @@ sub empty_directory {
 }
 
 sub share {
-    my $self = shift;
+    my $class = shift;
     my $path = $INC{'YamlTime.pm'} or die;
     if ($path =~ s!(\S.*?)[\\/]?\bb?lib\b.*!$1! and
         -e "$path/Makefile.PL" and
@@ -218,6 +260,67 @@ sub copy_files {
     }
 }
 
+my $prompts = {
+    task => 'Task Description: ',
+    cust => 'Customer Id: ',
+    tags => 'A Tag Word: ',
+    proj => 'Project Id: ',
+};
+
+sub populate {
+    my ($self, $task, $args) = @_;
+    my $old = $self->current_task || {};
+    $task->{task} = join ' ', @$args if @$args;
+    for my $key (qw[task cust proj tags]) {
+        my $val = $task->$key;
+        my $list = ref($val);
+        next if $list and @$val or length $val;
+        my $default = not($list) && $old->{$key} || '';
+        my $prompt = $prompts->{$key};
+        while (1) {
+            my $nval = prompt('S', $prompt, '', $default, sub {
+                my $v = shift;
+                return 1 unless length $v;
+                if ($key =~ /^(cust|proj|tags)$/) {
+                    return exists WWW($self->conf->{$key})->{$v};
+                }
+                return ($v =~ /\S/);
+            });
+            last unless $nval;
+            $nval =~ s/^\s*(.*?)\s*$/$1/;
+            if ($list) {
+                push @$val, $nval;
+            }
+            else {
+                $task->$key($nval);
+                last;
+            }
+        }
+    }
+}
+
+sub log {
+    my $self = shift;
+    print "@_\n";
+}
+
+
+#-----------------------------------------------------------------------------#
+# Errors happen
+sub error {
+    my ($self, $msg) = splice(@_, 0, 2);
+    die sprintf($msg, @_);
+}
+
+sub error__in_progress {
+    my ($self) = @_;
+    $self->error(<<'...');
+A task is already in progress.
+Can't start a new one,
+Stop the current one first.
+...
+}
+
 1;
 
 =head1 SYNOPSIS
@@ -236,15 +339,17 @@ YamlTime comes with a command line app called C<yt> that does everything.
 
 The following commands are supported.
 
-    yt                  - Show current yt status
+    yt                  - Show current yt status of today's tasks
     yt help             - Get Help
     yt init             - Create a new YamlTime store
     yt new              - Start a new task
     yt stop             - Stop the current task
     yt go               - Restart the current task
-    yt edit <task>      - Edit a tasks yaml file
+    yt edit <task>      - Edit a task's yaml file in $EDITOR
+    yt dump <task>      - Read a task file and print to STDOUT
+    yt save <task>      - Read STDIN and print to a task file
     yt check <range>    - Check the data in the range
-    yt status <option>  - Show the current yt status
+    yt status <range>   - Show the current yt status
     yt report <range> <style>
                         - Create a report for a time period
                           using a certain reporting style
@@ -265,6 +370,10 @@ ago'.
 
 Commands that need a time range, use this to set the end time. The default
 is now.
+
+=item --tag=<tag_list>
+
+A comma separated list of tags. Matches tasks the match all the tags. You can specify more than once to combine ('or' logig) groups.
 
 =item --style=<report-style>
 

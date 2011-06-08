@@ -1,4 +1,22 @@
-stratdat:
-  ssb:
-    name: Strategic StoryBoard
-    rate: 1
+# These are all your project keywords, file under customer:
+
+acme:
+  widget:
+    name: Make New Widgets
+    rate: AU1
+
+self:
+  esteem:
+    name: I love me
+    rate: US1
+  loathing:
+    name: I hate me
+    rate: US3
+
+misc:
+    fame:
+      name: Make a Name
+      rate: AU2
+    fortune:
+      name: Make Bank
+      rate: AU5
