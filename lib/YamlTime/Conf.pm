@@ -17,7 +17,7 @@ use DateTime;
 sub BUILD {
     my ($self) = @_;
     my $base = $self->base;
-    die "YamlTime is not configured in '$base'"
+    die "YamlTime is not configured in '$base'\n"
         unless -e "conf/yt.yaml";
     my $hash = YAML::XS::LoadFile('conf/yt.yaml');
     $self->{$_} = $hash->{$_} for keys %$hash;

@@ -1,5 +1,10 @@
 ---
+version: 0.02
+date:    Wed Jun  8 18:47:05 EST 2011
+changes:
+- Fixed a newline down under.
+---
 version: 0.01
-date:    
+date:    Wed Jun  8 18:43:36 EST 2011
 changes:
 - First Release

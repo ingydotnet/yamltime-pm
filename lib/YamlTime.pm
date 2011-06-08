@@ -11,7 +11,7 @@
 package YamlTime;
 use 5.008003;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 our $Conf;
 
 use Mouse;
