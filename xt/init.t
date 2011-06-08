@@ -9,8 +9,8 @@ chdir($dir) or die;
 run "yt init";
 
 ok -d($YEAR), "$YEAR directory exists";
-ok -e("conf/customer.yaml"), "conf/customer.yaml exists";
-ok -e("conf/project.yaml"), "conf/project.yaml exists";
+ok -e("conf/cust.yaml"), "conf/customer.yaml exists";
+ok -e("conf/proj.yaml"), "conf/project.yaml exists";
 ok -e("conf/tags.yaml"), "conf/tags.yaml exists";
 ok -e("conf/yt.yaml"), "conf/yt.yaml exists";
 

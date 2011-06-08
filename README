@@ -15,15 +15,17 @@ DESCRIPTION
 COMMANDLINE USAGE
     The following commands are supported.
 
-        yt                  - Show current yt status
+        yt                  - Show current yt status of today's tasks
         yt help             - Get Help
         yt init             - Create a new YamlTime store
         yt new              - Start a new task
         yt stop             - Stop the current task
         yt go               - Restart the current task
-        yt edit <task>      - Edit a tasks yaml file
+        yt edit <task>      - Edit a task's yaml file in $EDITOR
+        yt dump <task>      - Read a task file and print to STDOUT
+        yt save <task>      - Read STDIN and print to a task file
         yt check <range>    - Check the data in the range
-        yt status <option>  - Show the current yt status
+        yt status <range>   - Show the current yt status
         yt report <range> <style>
                             - Create a report for a time period
                               using a certain reporting style
@@ -40,6 +42,10 @@ COMMANDLINE USAGE
         Commands that need a time range, use this to set the end time. The
         default is now.
 
+    --tag=<tag_list>
+        A comma separated list of tags. Matches tasks the match all the
+        tags. You can specify more than once to combine ('or' logig) groups.
+
     --style=<report-style>
         This names a YamlTime reporting style. The default is CSV, which can
         be used as a spreadsheet.
@@ -48,7 +54,7 @@ SEE ALSO
     *   YAML
 
 AUTHOR
-    Ingy döt Net
+    Ingy döt Net <ingy@cpan.org>
 
 COPYRIGHT AND LICENSE
     Copyright (c) 2011. Ingy döt Net.

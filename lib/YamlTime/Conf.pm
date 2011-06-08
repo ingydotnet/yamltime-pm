@@ -1,7 +1,7 @@
 ##
 # name:      YamlTime::Conf
 # abstract:  YamlTime Configuration Object Class
-# author:    Ingy döt Net
+# author:    Ingy döt Net <ingy@cpan.org>
 # license:   perl
 # copyright: 2011
 # see:
@@ -12,7 +12,7 @@ package YamlTime::Conf;
 use Mouse;
 use YAML::XS;
 use DateTime;
-use XXX;
+# use XXX;
 
 sub BUILD {
     my ($self) = @_;

@@ -1,7 +1,7 @@
 ##
 # name:      YamlTime
 # abstract:  YAML based Personal Time Tracking
-# author:    Ingy döt Net
+# author:    Ingy döt Net <ingy@cpan.org>
 # license:   perl
 # copyright: 2011
 # see:
@@ -25,6 +25,7 @@ use DateTime 0.70 ();
 use DateTime::Format::Natural 0.94 ();
 use File::ShareDir 1.03 ();
 use Template::Toolkit::Simple 0.13 ();
+use Template::Plugin::YAMLVal 0.10 ();
 use Term::Prompt 1.04 ();
 
 use constant usage => 'YamlTime::Command';
@@ -37,7 +38,7 @@ extends qw[MouseX::App::Cmd::Command];
 use IO::All;
 use Cwd qw[cwd abs_path];
 use Term::Prompt qw[prompt];
-use XXX;
+# use XXX;
 
 use constant text => <<'...';
 This is the YamlTime personal time tracker.
@@ -86,6 +87,7 @@ sub execute {
 
 #-----------------------------------------------------------------------------#
 # A role for time range options
+#-----------------------------------------------------------------------------#
 package YamlTime::TimeOpts;
 use Mouse::Role;
 
@@ -95,14 +97,14 @@ has from => (is => 'ro', isa => 'Str', default => $time - 24*3600);
 has to => (is => 'ro', isa => 'Str', default => $time);
 
 #-----------------------------------------------------------------------------#
-# = YamlTime (yt) Commands
-
-# init - Initialize a new YamlTime repo
+# YamlTime (yt) Commands
+#-----------------------------------------------------------------------------#
 package YamlTime::Command::init;
 use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Initialize a new YamlTime store directory';
+
 has force => (
     is => 'ro',
     isa => 'Bool',
@@ -118,7 +120,7 @@ sub execute {
     }
     else {
         $self->error(
-            "Won't 'init' in a non empty directory, unless you use --force"
+            "Won't 'init' in a non empty directory, unless you use --force\n"
         );
     }
 }
@@ -132,7 +134,7 @@ use constant abstract => 'Create a new task and start the timer';
 
 sub execute {
     my ($self, $opt, $args) = @_;
-    $self->error__in_progress
+    $self->error__already_in_progress
         if $self->current_task and
             $self->current_task->in_progress;
 
@@ -154,19 +156,51 @@ sub execute {
     my ($self) = @_;
     my $task = $self->current_task or
         $self->error__no_current_task;
-    $task->error__not_in_progress;
+    $task->error__not_in_progress
+        unless $task->in_progress;
+
+    $task->stop;
 }
 
 #-----------------------------------------------------------------------------#
-# go - Restart a task
 package YamlTime::Command::go;
 use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Restart the timer on a task';
 
+sub execute {
+    my ($self, $opt, $args) = @_;
+    my $id = $args->[0];
+    my $task = $id
+        ? YamlTask->new(id => $id)
+        : $self->current_task
+            or $self->error__no_current_task;
+    $self->error__already_in_progress
+        if $task->in_progress;
+    $task->start;
+}
+
 #-----------------------------------------------------------------------------#
-# check - Check that the YamlTime store for problems
+package YamlTime::Command::status;
+use Mouse;
+extends qw[YamlTime::Command];
+with 'YamlTime::TimeOpts';
+
+use constant abstract => 'Show the status of a range of tasks';
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    for my $task ($self->task_range) {
+        printf "%1s %12s %5s %s\n",
+            ($task->in_progress ? '+' : '-'),
+            $task->id,
+            $task->elapsed,
+            $task->task;
+    }
+}
+
+#-----------------------------------------------------------------------------#
 package YamlTime::Command::check;
 use Mouse;
 extends qw[YamlTime::Command];
@@ -181,14 +215,6 @@ extends 'YamlTime::Command';
 with 'YamlTime::TimeOpts';
 
 use constant abstract => 'Produce a billing report from a range of tasks';
-
-#-----------------------------------------------------------------------------#
-package YamlTime::Command::status;
-use Mouse;
-extends qw[YamlTime::Command];
-with 'YamlTime::TimeOpts';
-
-use constant abstract => 'Show the status of a range of tasks';
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::edit;
@@ -222,6 +248,19 @@ sub current_task {
     my ($self) = @_;
     return unless -e '_';
     return YamlTime::Task->new(id => readlink('_'));
+}
+
+sub task_range {
+    my ($self) = @_;
+    my $now = $self->conf->now;
+    my $dir = sprintf "%4d/%02d/%02d",
+        $now->year,
+        $now->month,
+        $now->day;
+    my @files = -d $dir ? io->dir($dir)->All_Files : ();
+    return map {
+        YamlTime::Task->new(id => "$_");
+    } sort map $_->name, @files;
 }
 
 my $date_parser = DateTime::Format::Natural->new;
@@ -274,15 +313,17 @@ sub populate {
     for my $key (qw[task cust proj tags]) {
         my $val = $task->$key;
         my $list = ref($val);
-        next if $list and @$val or length $val;
+        next if $list ? @$val : length $val;
         my $default = not($list) && $old->{$key} || '';
         my $prompt = $prompts->{$key};
         while (1) {
             my $nval = prompt('S', $prompt, '', $default, sub {
                 my $v = shift;
-                return 1 unless length $v;
+                if (not length $v) {
+                    return ($key ne 'task');
+                }
                 if ($key =~ /^(cust|proj|tags)$/) {
-                    return exists WWW($self->conf->{$key})->{$v};
+                    return exists $self->conf->{$key}{$v};
                 }
                 return ($v =~ /\S/);
             });
@@ -312,12 +353,29 @@ sub error {
     die sprintf($msg, @_);
 }
 
-sub error__in_progress {
+sub error__already_in_progress {
     my ($self) = @_;
     $self->error(<<'...');
+Command invalid.
 A task is already in progress.
-Can't start a new one,
 Stop the current one first.
+...
+}
+
+sub error__not_in_progress {
+    my ($self) = @_;
+    $self->error(<<'...');
+Command invalid.
+There is no task is currently in progress.
+...
+}
+
+sub error__no_current_task {
+    my ($self) = @_;
+    $self->error(<<'...');
+Command invalid.
+There is no current task.
+You may need to specify one.
 ...
 }
 
