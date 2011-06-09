@@ -1,4 +1,15 @@
 ---
+version: 0.03
+date:    Fri Jun 10 01:42:52 EST 2011
+changes:
+- Finish the rest of the commands
+- Fix extra blank line in yaml files
+- Add dump action
+- Add remove action
+- Refactor default_command
+- Better error msgs
+- Check 'project' better.
+---
 version: 0.02
 date:    Wed Jun  8 18:47:05 EST 2011
 changes:

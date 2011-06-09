@@ -2,6 +2,4 @@
 
 use YamlTime;
 
-@ARGV = ('status') unless @ARGV;
-
 YamlTime->run;

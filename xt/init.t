@@ -6,6 +6,7 @@ rmtree($dir);
 mkdir($dir) or die;
 chdir($dir) or die;
 
+$ENV{YAMLTIME_BASE} = '.';
 run "yt init";
 
 ok -d($YEAR), "$YEAR directory exists";

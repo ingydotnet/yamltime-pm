@@ -23,11 +23,10 @@ COMMANDLINE USAGE
         yt go               - Restart the current task
         yt edit <task>      - Edit a task's yaml file in $EDITOR
         yt dump <task>      - Read a task file and print to STDOUT
-        yt save <task>      - Read STDIN and print to a task file
-        yt check <range>    - Check the data in the range
-        yt status <range>   - Show the current yt status
-        yt report <range> <style>
-                            - Create a report for a time period
+        yt remove <task>    - Delete a task file
+        yt check <tasks>    - Check the data in the range for errors
+        yt status <tasks>   - Show the current yt status
+        yt report <tasks>   - Create a report for a time period
                               using a certain reporting style
 
   Options
@@ -49,6 +48,10 @@ COMMANDLINE USAGE
     --style=<report-style>
         This names a YamlTime reporting style. The default is CSV, which can
         be used as a spreadsheet.
+
+KUDOS
+    Many thanks to the good people of Strategic Data in Melbourne Victoria
+    Australia, for supporting me and this project. \o/
 
 SEE ALSO
     *   YAML

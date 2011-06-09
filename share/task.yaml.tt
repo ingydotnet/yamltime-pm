@@ -1,5 +1,7 @@
 [% USE YAMLVal -%]
-[% IF mark %]mark: [% mark.yamlval %][% END %]
+[% IF mark -%]
+mark: [% mark.yamlval %]
+[% END -%]
 time: [% time.yamlval %]
 task: [% task.yamlval %]
 cust: [% cust.yamlval %]

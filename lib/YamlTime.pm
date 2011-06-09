@@ -11,7 +11,9 @@
 package YamlTime;
 use 5.008003;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
+
+# Global pointer to the YamlTime::Conf singleton object.
 our $Conf;
 
 use Mouse;
@@ -27,8 +29,11 @@ use File::ShareDir 1.03 ();
 use Template::Toolkit::Simple 0.13 ();
 use Template::Plugin::YAMLVal 0.10 ();
 use Term::Prompt 1.04 ();
+use IPC::Run 0.89 ();
+use Text::CSV_XS 0.81 ();
 
 use constant usage => 'YamlTime::Command';
+use constant default_command => 'status';
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command;
@@ -61,12 +66,14 @@ has conf => (
 );
 has base => (
     is => 'ro',
-    default => sub { abs_path($ENV{YAMLTIME_BASE} || '.') },
+    default => sub {
+        my $base = $ENV{YAMLTIME_BASE} ? $ENV{YAMLTIME_BASE} :
+        ($ENV{HOME} and -e "$ENV{HOME}/.yt") ? "$ENV{HOME}/.yt" :
+        '.';
+        $base =~ s!/+$!!;
+        return abs_path $base;
+    },
 );
-
-sub BUILD {
-    my ($self) = @_;
-}
 
 sub validate_args {
     my ($self) = @_;
@@ -75,14 +82,11 @@ sub validate_args {
     $self->conf unless ref($self) =~ /::init$/;
 }
 
-# A generic command abstract
-use constant abstract => 'abtract not yet defined :(';
-
 # A generic stub for command execution
 sub execute {
     my ($self) = @_;
     ((my $cmd = ref($self)) =~ s/.*://);
-    $self->error("'%s' not yet imlemented\n", $self->cmd);
+    $self->error("'%s' not yet imlemented", $self->cmd);
 }
 
 #-----------------------------------------------------------------------------#
@@ -93,11 +97,13 @@ use Mouse::Role;
 
 my $time = time;
 
-has from => (is => 'ro', isa => 'Str', default => $time - 24*3600);
-has to => (is => 'ro', isa => 'Str', default => $time);
+has from => (is => 'ro', isa => 'Str', default => 0);
+has to => (is => 'ro', isa => 'Str', default => 0);
 
 #-----------------------------------------------------------------------------#
 # YamlTime (yt) Commands
+#
+# This is the set of App::Cmd classes that support each command.
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::init;
 use Mouse;
@@ -112,7 +118,7 @@ has force => (
 );
 
 sub execute {
-    my ($self) = @_;
+    my ($self, $opt, $args) = @_;
     if ($self->empty_directory or $self->force) {
         my $share = $self->share;
         $self->copy_files("$share/conf", "./conf");
@@ -120,7 +126,7 @@ sub execute {
     }
     else {
         $self->error(
-            "Won't 'init' in a non empty directory, unless you use --force\n"
+            "Won't 'init' in a non empty directory, unless you use --force"
         );
     }
 }
@@ -153,7 +159,7 @@ extends qw[YamlTime::Command];
 use constant abstract => 'Stop the timer on a running task';
 
 sub execute {
-    my ($self) = @_;
+    my ($self, $opt, $args) = @_;
     my $task = $self->current_task or
         $self->error__no_current_task;
     $task->error__not_in_progress
@@ -191,8 +197,8 @@ use constant abstract => 'Show the status of a range of tasks';
 
 sub execute {
     my ($self, $opt, $args) = @_;
-    for my $task ($self->task_range) {
-        printf "%1s %12s %5s %s\n",
+    for my $task ($self->get_task_range(@$args)) {
+        printf "%1s %12s %5s  %s\n",
             ($task->in_progress ? '+' : '-'),
             $task->id,
             $task->elapsed,
@@ -205,62 +211,185 @@ package YamlTime::Command::check;
 use Mouse;
 extends qw[YamlTime::Command];
 with 'YamlTime::TimeOpts';
+use IO::All;
 
 use constant abstract => 'Check the validity of a range of tasks';
+
+has verbose => (is => 'ro', isa => 'Bool');
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    my $errors = 0;
+    for my $task ($self->get_task_range(@$args)) {
+        my @errors = $task->check;
+        if (@errors) {
+            $errors++;
+            printf "\n%s - found errors:\n", $task->id;
+            my $dump = YAML::XS::Dump \@errors;
+            $dump =~ s/^---\n//;
+            my $text = io($task->id)->all;
+            $text =~ s/^/    |/gm;
+            print $dump, $text;
+        }
+        elsif ($self->verbose) {
+            printf "%s - no errors found\n", $task->id;
+        }
+    }
+    if ($self->verbose and not $errors) {
+        print "No errors found\n";
+    }
+}
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::report;
 use Mouse;
 extends 'YamlTime::Command';
 with 'YamlTime::TimeOpts';
+use Text::CSV_XS;
+use Cwd qw[abs_path];
 
 use constant abstract => 'Produce a billing report from a range of tasks';
+
+has file => (is => 'ro', default => abs_path('report.csv'));
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    my $report_file = $self->file;
+    my $csv = Text::CSV_XS->new ({ binary => 1 }) or die;
+    $csv->eol ("\r\n");
+    open my $fh, ">:encoding(utf8)", $report_file or die "new.csv: $!";
+    $csv->print(
+        $fh,
+        [qw(Date Time Hours Project Task Tags Refs Notes)]
+    );
+    for my $task ($self->get_task_range(@$args)) {
+        $task->id =~ m!^(.*)/(\d\d)(\d\d)$! or die $task->id;
+        my $date = $1;
+        my $time = "$2:$3";
+        my $row = [
+            $date,
+            $time,
+            $task->time,
+            $task->proj,
+            $task->task,
+            join(', ', @{$task->tags}),
+            join(', ', @{$task->refs}),
+            $task->note || '',
+        ];
+        $csv->print ($fh, $row);
+    }
+    close $fh or die "report.csv: $!";
+    print "Created $report_file\n";
+}
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::edit;
 use Mouse;
 extends qw[YamlTime::Command];
 with 'YamlTime::TimeOpts';
+use IPC::Run qw( run timeout );
 
 use constant abstract => 'Edit a task\'s YAML in $EDITOR';
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    my $editor = $ENV{EDITOR}
+        or $self->error('You need to set $EDITOR env var to edit');
+    my $task = $self->get_task(@$args)
+        or $self->error("No task to dump");
+    exec $editor . " " . $task->id;
+}
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::dump;
 use Mouse;
 extends qw[YamlTime::Command];
 with 'YamlTime::TimeOpts';
+use IO::All;
 
 use constant abstract => 'Print a task file to STDOUT';
 
+sub execute {
+    my ($self, $opt, $args) = @_;
+    my $task = $self->get_task(@$args)
+        or $self->error("No task to dump");
+    print io($task->id)->all;
+}
+
 #-----------------------------------------------------------------------------#
-package YamlTime::Command::store;
+package YamlTime::Command::remove;
 use Mouse;
 extends qw[YamlTime::Command];
-with 'YamlTime::TimeOpts';
 
-use constant abstract => 'Write to a task file from STDIN';
+use constant abstract => 'Delete an entry by taskid';
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+
+    my $id = $args->[0];
+    $self->error("'yt remove' require a single task id") if
+        @$args != 1 or
+        $id !~ m!^20\d{2}/\d{2}/\d{2}/\d{4}! or
+        not(-f $id);
+
+    my $task = $self->get_task($id);
+
+    $self->error("'$id' is in progress. Run 'stop' first")
+        if $task->in_progress;
+
+    $task->remove();
+}
 
 #-----------------------------------------------------------------------------#
 # Guts of the machine
+#-----------------------------------------------------------------------------#
 package YamlTime::Command;
 
 sub current_task {
     my ($self) = @_;
-    return unless -e '_';
-    return YamlTime::Task->new(id => readlink('_'));
+    return $self->get_task;
 }
 
-sub task_range {
-    my ($self) = @_;
-    my $now = $self->conf->now;
-    my $dir = sprintf "%4d/%02d/%02d",
-        $now->year,
-        $now->month,
-        $now->day;
-    my @files = -d $dir ? io->dir($dir)->All_Files : ();
+sub get_task {
+    my ($self, $id) = @_;
+    $id ||= readlink('_') or return;
+    return YamlTime::Task->new(id => $id);
+}
+
+sub get_task_range {
+    my $self = shift;
+    my @files;
+    if (@_) {
+        @files = @_;
+    }
+    else {
+        my $from = $self->format_date($self->from || 'today');
+        my $to = $self->format_date($self->to || 'now');
+    OUTER:
+        for my $dir (sort grep /^20\d\d$/, glob("20*")) {
+            for my $file (sort map $_->name, -d $dir ? io->dir($dir)->All_Files : ()) {
+                next if $file lt $from;
+                last OUTER if $file gt $to;
+                push @files, $file;
+            }
+        }
+    }
     return map {
-        YamlTime::Task->new(id => "$_");
-    } sort map $_->name, @files;
+        $self->get_task($_);
+    } sort @files;
+}
+
+sub format_date {
+    my ($self, $str) = @_;
+    my $date = DateTime::Format::Natural->new(
+        time_zone => $self->conf->timezone,
+    )->parse_datetime($str);
+    return sprintf "%4d/%02d/%02d/%02d%02d",
+        $date->year,
+        $date->month,
+        $date->day,
+        $date->hour,
+        $date->minute;
 }
 
 my $date_parser = DateTime::Format::Natural->new;
@@ -306,6 +435,7 @@ my $prompts = {
     proj => 'Project Id: ',
 };
 
+# Prompt the user for the info needed in a task
 sub populate {
     my ($self, $task, $args) = @_;
     my $old = $self->current_task || {};
@@ -320,15 +450,18 @@ sub populate {
             my $nval = prompt('S', $prompt, '', $default, sub {
                 my $v = shift;
                 if (not length $v) {
-                    return ($key ne 'task');
+                    return ($key !~ /^(task|cust)$/);
                 }
-                if ($key =~ /^(cust|proj|tags)$/) {
+                if ($key =~ /^(cust|tags)$/) {
                     return exists $self->conf->{$key}{$v};
+                }
+                if ($key =~ /^(proj)$/) {
+                    return exists $self->conf->{proj}{$task->{cust}}{$v};
                 }
                 return ($v =~ /\S/);
             });
-            last unless $nval;
             $nval =~ s/^\s*(.*?)\s*$/$1/;
+            last unless $nval;
             if ($list) {
                 push @$val, $nval;
             }
@@ -345,11 +478,12 @@ sub log {
     print "@_\n";
 }
 
-
 #-----------------------------------------------------------------------------#
 # Errors happen
 sub error {
     my ($self, $msg) = splice(@_, 0, 2);
+    chomp $msg;
+    $msg .= $/;
     die sprintf($msg, @_);
 }
 
@@ -405,11 +539,10 @@ The following commands are supported.
     yt go               - Restart the current task
     yt edit <task>      - Edit a task's yaml file in $EDITOR
     yt dump <task>      - Read a task file and print to STDOUT
-    yt save <task>      - Read STDIN and print to a task file
-    yt check <range>    - Check the data in the range
-    yt status <range>   - Show the current yt status
-    yt report <range> <style>
-                        - Create a report for a time period
+    yt remove <task>    - Delete a task file
+    yt check <tasks>    - Check the data in the range for errors
+    yt status <tasks>   - Show the current yt status
+    yt report <tasks>   - Create a report for a time period
                           using a certain reporting style
 
 =head2 Options
@@ -431,7 +564,8 @@ is now.
 
 =item --tag=<tag_list>
 
-A comma separated list of tags. Matches tasks the match all the tags. You can specify more than once to combine ('or' logig) groups.
+A comma separated list of tags. Matches tasks the match all the tags. You can
+specify more than once to combine ('or' logig) groups.
 
 =item --style=<report-style>
 
@@ -439,3 +573,9 @@ This names a YamlTime reporting style. The default is CSV, which can be used
 as a spreadsheet.
 
 =back
+
+=head1 KUDOS
+
+Many thanks to the good people of Strategic Data in Melbourne Victoria
+Australia, for supporting me and this project. \o/
+

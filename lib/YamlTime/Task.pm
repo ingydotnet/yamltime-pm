@@ -22,7 +22,7 @@ sub BUILD {
     my $id = $self->id;
     die "'$id' is invalid task id"
         unless $id =~ m!^20\d\d/\d\d/\d\d/\d\d\d\d$!;
-    $self->read if -e $id;
+    $self->read if $self->exists;
 }
 
 sub conf { $YamlTime::Conf };
@@ -40,7 +40,8 @@ has note => ( is => 'rw', default => '' );
 sub read {
     my ($self) = @_;
     my $id = $self->id;
-    my $hash = YAML::XS::LoadFile($id);
+    my $hash = eval { YAML::XS::LoadFile($id) }
+        or return;
     $self->{$_} = $hash->{$_}
         for keys %$hash;
 }
@@ -72,6 +73,13 @@ sub stop {
     $self->write();
 }
 
+sub remove {
+    my ($self) = @_;
+    die if $self->in_progress;
+    die unless $self->exists;
+    unlink($self->id) or die;
+}
+
 sub elapsed {
     my ($self) = @_;
 
@@ -101,9 +109,15 @@ sub elapsed {
 sub current {
     my ($self) = @_;
     my $id = $self->id;
-    die "No file '$id'" unless -e $id;
+    die "'$id' does not exist" unless $self->exists;
     unlink('_');
     symlink($id, '_');
+}
+
+sub exists {
+    my ($self) = @_;
+    my $id = $self->id or return;
+    return -e $id;
 }
 
 sub in_progress {
@@ -120,6 +134,51 @@ sub new_id {
         $now->day,
         $now->hour,
         $now->minute;
+}
+
+sub check {
+    my ($self) = @_;
+    my @errors;
+    eval { YAML::XS::LoadFile $self->id; 1 } or return ($@);
+    if (not $self->mark) {
+        if (not $self->time) {
+            push @errors, "The 'time' field is missing";
+        }
+        elsif ($self->time =~ /^0?0:00$/) {
+            push @errors, "The 'time' field is zero";
+        }
+        elsif ($self->time !~ /^\d?\d:\d\d$/) {
+            push @errors, "The 'time' field is invalid";
+        }
+    }
+    else {
+        if ($self->time !~ /^\d?\d:\d\d$/) {
+            push @errors, "The 'time' field is invalid";
+        }
+    }
+    if (not length $self->task) {
+        push @errors, "The 'task' field is missing";
+    }
+    if (not $self->cust) {
+        push @errors, "The 'cust' field is missing";
+    }
+    elsif (not $self->conf->{cust}->{$self->cust}) {
+        push @errors, sprintf "Invalid 'cust' field '%s'", $self->cust;
+    }
+    else {
+        if (not $self->proj) {
+            push @errors, "The 'proj' field is missing";
+        }
+        elsif (not $self->conf->{proj}->{$self->cust}->{$self->proj}) {
+            push @errors, sprintf "Invalid 'proj' field '%s'", $self->proj;
+        }
+    }
+    for my $tag (@{$self->tags}) {
+        if (not $self->conf->{tags}->{$tag}) {
+            push @errors, sprintf "Invalid 'tags' field '%s'", $tag;
+        }
+    }
+    return @errors;
 }
 
 1;
