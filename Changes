@@ -1,4 +1,10 @@
 ---
+version: 0.04
+date:    Sat Jun 11 03:16:02 EST 2011
+changes:
+- Polish the help msgs
+- Refactoring
+---
 version: 0.03
 date:    Fri Jun 10 01:42:52 EST 2011
 changes:

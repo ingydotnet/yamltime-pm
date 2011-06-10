@@ -21,9 +21,10 @@ COMMANDLINE USAGE
         yt new              - Start a new task
         yt stop             - Stop the current task
         yt go               - Restart the current task
+        yt create <task>    - Create a new task for a specific date/time
         yt edit <task>      - Edit a task's yaml file in $EDITOR
         yt dump <task>      - Read a task file and print to STDOUT
-        yt remove <task>    - Delete a task file
+        yt delete <task>    - Delete a task file
         yt check <tasks>    - Check the data in the range for errors
         yt status <tasks>   - Show the current yt status
         yt report <tasks>   - Create a report for a time period

@@ -7,20 +7,25 @@
 # see:
 # - YAML
 
+# TODO:
+# - Support --tag=
+# - Sell to cdent
+# - Move all errors to error__ methods
+
 #-----------------------------------------------------------------------------#
 package YamlTime;
 use 5.008003;
-
-our $VERSION = '0.03';
-
-# Global pointer to the YamlTime::Conf singleton object.
-our $Conf;
-
 use Mouse;
 extends 'MouseX::App::Cmd';
 
+our $VERSION = '0.04';
+
 use YamlTime::Conf;
 use YamlTime::Task;
+
+# Requires
+use Mouse 0.93;
+use MouseX::App::Cmd 0.08;
 use YAML::XS 0.35 ();
 use IO::All 0.41 ();
 use DateTime 0.70 ();
@@ -32,7 +37,11 @@ use Term::Prompt 1.04 ();
 use IPC::Run 0.89 ();
 use Text::CSV_XS 0.81 ();
 
-use constant usage => 'YamlTime::Command';
+# Global pointer to the YamlTime::Conf singleton object.
+our $Conf;
+
+use constant usage => 'YamlTime';
+use constant text => "yt command [<options>] [<arguments>]\n";
 use constant default_command => 'status';
 
 #-----------------------------------------------------------------------------#
@@ -45,27 +54,19 @@ use Cwd qw[cwd abs_path];
 use Term::Prompt qw[prompt];
 # use XXX;
 
-use constant text => <<'...';
-This is the YamlTime personal time tracker.
-
-Usage:
-
-    yt
-    yt <options> command
-    yt <options> new <task description>
-...
-
-has conf => (
+has _conf => (
     is => 'ro',
     lazy => 1,
+    reader => 'conf',
     builder => sub {
         my ($self) = @_;
         return $YamlTime::Conf =
             YamlTime::Conf->new(base => $self->base);
     },
 );
-has base => (
+has _base => (
     is => 'ro',
+    reader => 'base',
     default => sub {
         my $base = $ENV{YAMLTIME_BASE} ? $ENV{YAMLTIME_BASE} :
         ($ENV{HOME} and -e "$ENV{HOME}/.yt") ? "$ENV{HOME}/.yt" :
@@ -82,12 +83,14 @@ sub validate_args {
     $self->conf unless ref($self) =~ /::init$/;
 }
 
-# A generic stub for command execution
-sub execute {
-    my ($self) = @_;
-    ((my $cmd = ref($self)) =~ s/.*://);
-    $self->error("'%s' not yet imlemented", $self->cmd);
-}
+# Semi-brutal hack to suppress extra options I don't care about.
+around usage => sub {
+    my $orig = shift;
+    my $self = shift;
+    my $opts = $self->{usage}->{options};
+    @$opts = grep { $_->{name} ne 'help' } @$opts;
+    return $self->$orig(@_);
+};
 
 #-----------------------------------------------------------------------------#
 # A role for time range options
@@ -97,8 +100,20 @@ use Mouse::Role;
 
 my $time = time;
 
-has from => (is => 'ro', isa => 'Str', default => 0);
-has to => (is => 'ro', isa => 'Str', default => 0);
+has from => (
+    is => 'ro',
+    isa => 'Str',
+    default => 0,
+    documentation =>
+        'Range start date/time (natural format) default(midnight)',
+);
+has to => (
+    is => 'ro',
+    isa => 'Str',
+    default => 0,
+    documentation =>
+        'Range end date/time (natural format) default(now)',
+);
 
 #-----------------------------------------------------------------------------#
 # YamlTime (yt) Commands
@@ -110,6 +125,7 @@ use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Initialize a new YamlTime store directory';
+use constant usage_desc => 'yt init [--force]';
 
 has force => (
     is => 'ro',
@@ -129,6 +145,9 @@ sub execute {
             "Won't 'init' in a non empty directory, unless you use --force"
         );
     }
+
+    $self->log(sprintf "Initialized YamlTime directory: %s", $self->base);
+    $self->log("\nNow edit the conf files and run 'yt help'.")
 }
 
 #-----------------------------------------------------------------------------#
@@ -137,6 +156,7 @@ use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Create a new task and start the timer';
+use constant usage_desc => 'yt new ["Task description"]';
 
 sub execute {
     my ($self, $opt, $args) = @_;
@@ -148,7 +168,9 @@ sub execute {
     $self->populate($task, $args);
     $task->start;
 
-    $self->log("Started task " . $task->id);
+    $self->log(sprintf "Started task %s.", $task->id);
+    $self->log("\nGet to work!")
+        unless $self->conf->be_serious;
 }
 
 #-----------------------------------------------------------------------------#
@@ -157,15 +179,19 @@ use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Stop the timer on a running task';
+use constant usage_desc => 'yt stop';
 
 sub execute {
     my ($self, $opt, $args) = @_;
     my $task = $self->current_task or
         $self->error__no_current_task;
-    $task->error__not_in_progress
+    $self->error__not_in_progress
         unless $task->in_progress;
 
     $task->stop;
+    $self->log(sprintf "Stopped task %s. Time: %s", $task->id, $task->elapsed);
+    $self->log("\nSTOP! ... YAML TIME!")
+        unless $self->conf->be_serious;
 }
 
 #-----------------------------------------------------------------------------#
@@ -174,17 +200,20 @@ use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Restart the timer on a task';
+use constant usage_desc => 'yt go [<task-id>]';
 
 sub execute {
     my ($self, $opt, $args) = @_;
     my $id = $args->[0];
-    my $task = $id
-        ? YamlTask->new(id => $id)
-        : $self->current_task
-            or $self->error__no_current_task;
+    my $task = $self->get_task(@$args)
+        or $self->error__no_current_task;
     $self->error__already_in_progress
         if $task->in_progress;
+
     $task->start;
+    $self->log(sprintf "Retarted task %s.", $task->id);
+    $self->log("\nGet back to work!")
+        unless $self->conf->be_serious;
 }
 
 #-----------------------------------------------------------------------------#
@@ -194,16 +223,28 @@ extends qw[YamlTime::Command];
 with 'YamlTime::TimeOpts';
 
 use constant abstract => 'Show the status of a range of tasks';
+use constant usage_desc => do { $_ = <<'...'; chomp; $_ };
+yt                      # today's tasks
+yt status [<task-ids>]
+yt status [--from=...] [--to=...]
+...
 
 sub execute {
     my ($self, $opt, $args) = @_;
+    my $total = 0;
     for my $task ($self->get_task_range(@$args)) {
+        if ($task->elapsed =~ /^(\d+):(\d+)$/) {
+            $total += $1 * 60 + $2;
+        }
         printf "%1s %12s %5s  %s\n",
             ($task->in_progress ? '+' : '-'),
             $task->id,
             $task->elapsed,
             $task->task;
     }
+    my $hours = int($total / 60);
+    my $mins = $total % 60;
+    printf ' ' x 11 . "Total: % 2d:%02d\n", $hours, $mins;
 }
 
 #-----------------------------------------------------------------------------#
@@ -214,8 +255,14 @@ with 'YamlTime::TimeOpts';
 use IO::All;
 
 use constant abstract => 'Check the validity of a range of tasks';
+use constant usage_desc => 'yt check [--verbose] [--from=...] [--to=...]';
 
-has verbose => (is => 'ro', isa => 'Bool');
+has verbose => (
+    is => 'ro',
+    isa => 'Bool',
+    default => 0,
+    documentation => 'Increase output verbosity',
+);
 
 sub execute {
     my ($self, $opt, $args) = @_;
@@ -249,6 +296,7 @@ use Text::CSV_XS;
 use Cwd qw[abs_path];
 
 use constant abstract => 'Produce a billing report from a range of tasks';
+use constant usage_desc => 'yt report [--file=...] [--from=...] [--to=...]';
 
 has file => (is => 'ro', default => abs_path('report.csv'));
 
@@ -286,17 +334,17 @@ sub execute {
 package YamlTime::Command::edit;
 use Mouse;
 extends qw[YamlTime::Command];
-with 'YamlTime::TimeOpts';
 use IPC::Run qw( run timeout );
 
 use constant abstract => 'Edit a task\'s YAML in $EDITOR';
+use constant usage_desc => 'yt edit [<task-id>]';
 
 sub execute {
     my ($self, $opt, $args) = @_;
     my $editor = $ENV{EDITOR}
         or $self->error('You need to set $EDITOR env var to edit');
     my $task = $self->get_task(@$args)
-        or $self->error("No task to dump");
+        or $self->error("No task to edit");
     exec $editor . " " . $task->id;
 }
 
@@ -304,10 +352,10 @@ sub execute {
 package YamlTime::Command::dump;
 use Mouse;
 extends qw[YamlTime::Command];
-with 'YamlTime::TimeOpts';
 use IO::All;
 
 use constant abstract => 'Print a task file to STDOUT';
+use constant usage_desc => 'yt dump [<task-id>]';
 
 sub execute {
     my ($self, $opt, $args) = @_;
@@ -317,17 +365,41 @@ sub execute {
 }
 
 #-----------------------------------------------------------------------------#
-package YamlTime::Command::remove;
+package YamlTime::Command::create;
+use Mouse;
+extends qw[YamlTime::Command];
+
+use constant abstract => 'Create a new task for a particular date/time';
+use constant usage_desc => 'yt create <new-task-id>';
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    $self->error("Requires a taskid of the form '2011/12/31/1234'")
+        unless @$args == 1 and $args->[0] =~ m!^(20\d\d/\d\d/\d\d/\d\d\d\d)$!;
+    my $id = $args->[0];
+    my $task = $self->get_task($id);
+    $self->error("Task '$id' already exists")
+        if $task->exists;
+
+    $self->populate($task, []);
+    $task->write;
+
+    $self->log("Created task $id");
+}
+
+#-----------------------------------------------------------------------------#
+package YamlTime::Command::delete;
 use Mouse;
 extends qw[YamlTime::Command];
 
 use constant abstract => 'Delete an entry by taskid';
+use constant usage_desc => 'yt delete <task-id>';
 
 sub execute {
     my ($self, $opt, $args) = @_;
 
     my $id = $args->[0];
-    $self->error("'yt remove' require a single task id") if
+    $self->error("'yt delete' require a single task id") if
         @$args != 1 or
         $id !~ m!^20\d{2}/\d{2}/\d{2}/\d{4}! or
         not(-f $id);
@@ -337,7 +409,7 @@ sub execute {
     $self->error("'$id' is in progress. Run 'stop' first")
         if $task->in_progress;
 
-    $task->remove();
+    $task->delete();
 }
 
 #-----------------------------------------------------------------------------#
@@ -424,6 +496,7 @@ sub copy_files {
     for my $file (io($source)->All_Files) {
         my $short = $file->name;
         $short =~ s!^\Q$source\E/?!! or die $short;
+        next if $short =~ /^\./;
         io("$target/$short")->assert->print($file->all);
     }
 }
@@ -537,9 +610,10 @@ The following commands are supported.
     yt new              - Start a new task
     yt stop             - Stop the current task
     yt go               - Restart the current task
+    yt create <task>    - Create a new task for a specific date/time
     yt edit <task>      - Edit a task's yaml file in $EDITOR
     yt dump <task>      - Read a task file and print to STDOUT
-    yt remove <task>    - Delete a task file
+    yt delete <task>    - Delete a task file
     yt check <tasks>    - Check the data in the range for errors
     yt status <tasks>   - Show the current yt status
     yt report <tasks>   - Create a report for a time period

@@ -78,6 +78,8 @@ sub remove {
     die if $self->in_progress;
     die unless $self->exists;
     unlink($self->id) or die;
+    unlink('_')
+        if readlink('_') eq $self->id;
 }
 
 sub elapsed {

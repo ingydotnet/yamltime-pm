@@ -35,6 +35,7 @@ Then retry your command.
 has base => ( is => 'ro', required => 1 );
 has timezone => ( is => 'ro' );
 has unconfigured => ( is => 'ro' );
+has be_serious => ( is => 'ro' );
 
 has now => (
     is => 'ro',
