@@ -8,9 +8,10 @@
 # - YAML
 
 # TODO:
-# - Support --tag=
-# - Sell to cdent
-# - Move all errors to error__ methods
+# - Use better readline prompt in populate.
+# - Sell to cdent and bsb ad toby and russell
+# - Add Write::Excel reporting
+# - Add option to round numbers
 
 #-----------------------------------------------------------------------------#
 package YamlTime;
@@ -18,7 +19,7 @@ use 5.008003;
 use Mouse;
 extends 'MouseX::App::Cmd';
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use YamlTime::Conf;
 use YamlTime::Task;
@@ -40,6 +41,7 @@ use Text::CSV_XS 0.81 ();
 # Global pointer to the YamlTime::Conf singleton object.
 our $Conf;
 
+# App::Cmd help helpers
 use constant usage => 'YamlTime';
 use constant text => "yt command [<options>] [<arguments>]\n";
 use constant default_command => 'status';
@@ -54,6 +56,7 @@ use Cwd qw[cwd abs_path];
 use Term::Prompt qw[prompt];
 # use XXX;
 
+# _ keeps these from becoming cli options
 has _conf => (
     is => 'ro',
     lazy => 1,
@@ -68,19 +71,23 @@ has _base => (
     is => 'ro',
     reader => 'base',
     default => sub {
-        my $base = $ENV{YAMLTIME_BASE} ? $ENV{YAMLTIME_BASE} :
-        ($ENV{HOME} and -e "$ENV{HOME}/.yt") ? "$ENV{HOME}/.yt" :
-        '.';
+        my $base = $ENV{YAMLTIME_BASE} ? $ENV{YAMLTIME_BASE} : '.';
         $base =~ s!/+$!!;
         return abs_path $base;
     },
 );
 
+# Not validating any args. Checking to working environment.
 sub validate_args {
     my ($self) = @_;
     my $base = $self->base;
-    chdir $base or $self->error("Can't chdir to '%s'", $base);
-    $self->conf unless ref($self) =~ /::init$/;
+    chdir $base
+        or $self->error__cant_chdir_base;
+    if (ref($self) !~ /::init$/) {
+        $self->error__not_init
+            unless -e 'conf' and glob('20*');
+        $self->conf;
+    }
 }
 
 # Semi-brutal hack to suppress extra options I don't care about.
@@ -93,9 +100,9 @@ around usage => sub {
 };
 
 #-----------------------------------------------------------------------------#
-# A role for time range options
+# A role for time/tag range options
 #-----------------------------------------------------------------------------#
-package YamlTime::TimeOpts;
+package YamlTime::RangeOpts;
 use Mouse::Role;
 
 my $time = time;
@@ -113,6 +120,21 @@ has to => (
     default => 0,
     documentation =>
         'Range end date/time (natural format) default(now)',
+);
+has tags => (
+    is => 'ro',
+    isa => 'ArrayRef[Str]',
+    default => sub{[]},
+    documentation =>
+        'Comma separated tags. Can be used more than once',
+    trigger => sub {
+        my ($self, $new, $old) = @_;
+        $self->{tags} = [
+            map {
+                [ split /\s*,\s*/ ]
+            } @$new
+        ];
+    },
 );
 
 #-----------------------------------------------------------------------------#
@@ -141,9 +163,7 @@ sub execute {
         mkdir($self->date('now')->year);
     }
     else {
-        $self->error(
-            "Won't 'init' in a non empty directory, unless you use --force"
-        );
+        $self->error__wont_init;
     }
 
     $self->log(sprintf "Initialized YamlTime directory: %s", $self->base);
@@ -220,7 +240,7 @@ sub execute {
 package YamlTime::Command::status;
 use Mouse;
 extends qw[YamlTime::Command];
-with 'YamlTime::TimeOpts';
+with 'YamlTime::RangeOpts';
 
 use constant abstract => 'Show the status of a range of tasks';
 use constant usage_desc => do { $_ = <<'...'; chomp; $_ };
@@ -244,14 +264,15 @@ sub execute {
     }
     my $hours = int($total / 60);
     my $mins = $total % 60;
-    printf ' ' x 11 . "Total: % 2d:%02d\n", $hours, $mins;
+    printf ' ' x 11 . "Total: % 2d:%02d\n", $hours, $mins
+        if $total;
 }
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::check;
 use Mouse;
 extends qw[YamlTime::Command];
-with 'YamlTime::TimeOpts';
+with 'YamlTime::RangeOpts';
 use IO::All;
 
 use constant abstract => 'Check the validity of a range of tasks';
@@ -291,14 +312,19 @@ sub execute {
 package YamlTime::Command::report;
 use Mouse;
 extends 'YamlTime::Command';
-with 'YamlTime::TimeOpts';
+with 'YamlTime::RangeOpts';
 use Text::CSV_XS;
 use Cwd qw[abs_path];
 
 use constant abstract => 'Produce a billing report from a range of tasks';
 use constant usage_desc => 'yt report [--file=...] [--from=...] [--to=...]';
 
-has file => (is => 'ro', default => abs_path('report.csv'));
+has file => (
+    is => 'ro',
+    isa => 'Str',
+    default => abs_path('report.csv'),
+    documentation => 'Name of file to write the report to',
+);
 
 sub execute {
     my ($self, $opt, $args) = @_;
@@ -374,7 +400,7 @@ use constant usage_desc => 'yt create <new-task-id>';
 
 sub execute {
     my ($self, $opt, $args) = @_;
-    $self->error("Requires a taskid of the form '2011/12/31/1234'")
+    $self->error("Requires a task-id of the form '2011/12/31/1234'")
         unless @$args == 1 and $args->[0] =~ m!^(20\d\d/\d\d/\d\d/\d\d\d\d)$!;
     my $id = $args->[0];
     my $task = $self->get_task($id);
@@ -392,14 +418,14 @@ package YamlTime::Command::delete;
 use Mouse;
 extends qw[YamlTime::Command];
 
-use constant abstract => 'Delete an entry by taskid';
+use constant abstract => 'Delete an entry by task-id';
 use constant usage_desc => 'yt delete <task-id>';
 
 sub execute {
     my ($self, $opt, $args) = @_;
 
     my $id = $args->[0];
-    $self->error("'yt delete' require a single task id") if
+    $self->error("'yt delete' require a single task-id") if
         @$args != 1 or
         $id !~ m!^20\d{2}/\d{2}/\d{2}/\d{4}! or
         not(-f $id);
@@ -446,9 +472,27 @@ sub get_task_range {
             }
         }
     }
-    return map {
+    return grep {
+        $self->match_tags($_);
+    } map {
         $self->get_task($_);
     } sort @files;
+}
+
+sub match_tags {
+    my ($self, $task) = @_;
+    my $want = $self->tags;
+    return 1 unless @$want;
+    my $have = $task->tags;
+    return 0 unless @$have;
+  OUTER:
+    for my $w (@$want) {
+        for my $t (@$w) {
+            next OUTER unless grep {$_ eq $t} @$have;
+        }
+        return 1;
+    }
+    return 0;
 }
 
 sub format_date {
@@ -558,6 +602,42 @@ sub error {
     chomp $msg;
     $msg .= $/;
     die sprintf($msg, @_);
+}
+
+sub error__cant_chdir_base {
+    my ($self) = @_;
+    my $base = $self->base;
+    $self->error(<<"...");
+Can't chdir to '$base'.
+YAMLTIME_BASE is set to '$base',
+but it does not yet exist. You should create it and rerun your command.
+...
+}
+
+sub error__not_init {
+    my ($self) = @_;
+    my $base = $self->base;
+    if ($ENV{YAMLTIME_BASE} or $self->empty_directory) {
+        $self->error(<<"...");
+'$base' not yet initialized.
+Run 'yt init'.
+...
+    }
+    else {
+        $self->error(<<"...");
+'$base' is not a yt directory and it's not empty.
+
+You should mkdir and cd into a new directory, or set the YAMLTIME_BASE
+environment variable to such a directory.
+...
+    }
+}
+
+sub error__wont_init {
+    my ($self) = @_;
+    $self->error(
+        "Won't 'init' in a non empty directory, unless you use --force"
+    );
 }
 
 sub error__already_in_progress {
