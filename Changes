@@ -1,4 +1,9 @@
 ---
+version: 0.06
+date:    Tue Jun 14 22:35:45 EST 2011
+changes:
+- Add better readline support and tab completion
+---
 version: 0.05
 date:    Sat Jun 11 16:22:00 EST 2011
 changes:

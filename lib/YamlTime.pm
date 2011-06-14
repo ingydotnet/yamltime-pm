@@ -1,6 +1,6 @@
 ##
 # name:      YamlTime
-# abstract:  YAML based Personal Time Tracking
+# abstract:  YAML-based Personal Time Tracking App
 # author:    Ingy döt Net <ingy@cpan.org>
 # license:   perl
 # copyright: 2011
@@ -8,9 +8,9 @@
 # - YAML
 
 # TODO:
-# - Use better readline prompt in populate.
 # - Sell to cdent and bsb ad toby and russell
-# - Add Write::Excel reporting
+# - Write::Excel reporting plugin
+# - Git plugin
 # - Add option to round numbers
 
 #-----------------------------------------------------------------------------#
@@ -19,24 +19,27 @@ use 5.008003;
 use Mouse;
 extends 'MouseX::App::Cmd';
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use YamlTime::Conf;
 use YamlTime::Task;
 
 # Requires
+BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
 use Mouse 0.93;
 use MouseX::App::Cmd 0.08;
-use YAML::XS 0.35 ();
 use IO::All 0.41 ();
 use DateTime 0.70 ();
 use DateTime::Format::Natural 0.94 ();
 use File::ShareDir 1.03 ();
 use Template::Toolkit::Simple 0.13 ();
 use Template::Plugin::YAMLVal 0.10 ();
-use Term::Prompt 1.04 ();
-use IPC::Run 0.89 ();
+use Term::ReadLine 1.04 ();
 use Text::CSV_XS 0.81 ();
+use YAML::XS 0.35 ();
+my $requires = "
+use Term::ReadLine::Gnu 1.20 ();
+";
 
 # Global pointer to the YamlTime::Conf singleton object.
 our $Conf;
@@ -53,7 +56,6 @@ extends qw[MouseX::App::Cmd::Command];
 
 use IO::All;
 use Cwd qw[cwd abs_path];
-use Term::Prompt qw[prompt];
 # use XXX;
 
 # _ keeps these from becoming cli options
@@ -231,7 +233,7 @@ sub execute {
         if $task->in_progress;
 
     $task->start;
-    $self->log(sprintf "Retarted task %s.", $task->id);
+    $self->log(sprintf "Restarted task %s - %s.", $task->id, $task->task);
     $self->log("\nGet back to work!")
         unless $self->conf->be_serious;
 }
@@ -360,7 +362,6 @@ sub execute {
 package YamlTime::Command::edit;
 use Mouse;
 extends qw[YamlTime::Command];
-use IPC::Run qw( run timeout );
 
 use constant abstract => 'Edit a task\'s YAML in $EDITOR';
 use constant usage_desc => 'yt edit [<task-id>]';
@@ -552,6 +553,25 @@ my $prompts = {
     proj => 'Project Id: ',
 };
 
+sub prompt {
+    my ($self, $key, $default, $task) = @_;
+    my $prompt = $prompts->{$key};
+    my $term = new Term::ReadLine 'YamlTime';
+    $term->Attribs->{completion_function} = sub{
+        return sort keys %{$self->conf->{$key}}
+            if $key =~ /^(cust|tags)$/;
+        return sort keys %{$self->conf->{proj}{$task->{cust}}}
+            if $key =~ /^(proj)$/;
+        return ();
+    };
+    my $val = $term->readline($prompt, $default);
+    exit unless defined $val;
+    $val =~ s/\A\s*(.*?)\s*\z/$1/s;
+    $term->addhistory($val) if $val =~ /\S/;
+
+    return $val;
+}
+
 # Prompt the user for the info needed in a task
 sub populate {
     my ($self, $task, $args) = @_;
@@ -560,30 +580,37 @@ sub populate {
     for my $key (qw[task cust proj tags]) {
         my $val = $task->$key;
         my $list = ref($val);
-        next if $list ? @$val : length $val;
-        my $default = not($list) && $old->{$key} || '';
-        my $prompt = $prompts->{$key};
+        my $default = $list ? '' : ($task->{$key} || $old->{$key});
         while (1) {
-            my $nval = prompt('S', $prompt, '', $default, sub {
-                my $v = shift;
-                if (not length $v) {
-                    return ($key !~ /^(task|cust)$/);
+            my $new_val = $self->prompt($key, $default, $task);
+
+            if (not length $new_val) {
+                if ($key =~ /^(task|cust)$/) {
+                    warn "    Required field.\n";
+                    next;
                 }
-                if ($key =~ /^(cust|tags)$/) {
-                    return exists $self->conf->{$key}{$v};
+                else {
+                    last;
                 }
-                if ($key =~ /^(proj)$/) {
-                    return exists $self->conf->{proj}{$task->{cust}}{$v};
+            }
+            elsif ($key =~ /^(cust|tags)$/) {
+                if (not exists $self->conf->{$key}{$new_val}) {
+                    warn "    '$new_val' is invalid.\n";
+                    next;
                 }
-                return ($v =~ /\S/);
-            });
-            $nval =~ s/^\s*(.*?)\s*$/$1/;
-            last unless $nval;
+            }
+            elsif ($key =~ /^(proj)$/) {
+                if (not exists $self->conf->{proj}{$task->{cust}}{$new_val}) {
+                    warn "    '$new_val' is invalid.\n";
+                    next;
+                }
+            }
+
             if ($list) {
-                push @$val, $nval;
+                push @$val, $new_val;
             }
             else {
-                $task->$key($nval);
+                $task->$key($new_val);
                 last;
             }
         }
@@ -678,14 +705,19 @@ YamlTime is an application that allows you do your personal project time
 tracking from the command line. It saves your data in plain text YAML files.
 You can use a version control system (like git) to back up the data.
 
+YamlTime can supports multiple customers, multiple projects and multiple
+rates. It has reporting, spreadsheets, tagging, time/tag selection and 3rd
+party plugin modules.
+
 YamlTime comes with a command line app called C<yt> that does everything.
 
-=head1 COMMANDLINE USAGE
+=head1 COMMAND LINE USAGE
 
 The following commands are supported.
 
     yt                  - Show current yt status of today's tasks
-    yt help             - Get Help
+    yt help             - Get help
+    yt help <command>   - Get help for a specific command
     yt init             - Create a new YamlTime store
     yt new              - Start a new task
     yt stop             - Stop the current task
@@ -698,6 +730,13 @@ The following commands are supported.
     yt status <tasks>   - Show the current yt status
     yt report <tasks>   - Create a report for a time period
                           using a certain reporting style
+
+The <yt new> command will prompt you for some information. You can use tab
+completion for many of the fields. The values that you put in your config
+files are the values that are offered (and the only ones you can use).
+
+Some of the fields may be left blank. You can use C<yt edit> to fix up any
+task, later on.
 
 =head2 Options
 
