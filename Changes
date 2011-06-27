@@ -1,4 +1,9 @@
 ---
+version: 0.07
+date:    Mon Jun 27 08:59:13 EDT 2011
+changes:
+- rjbs++' changes
+---
 version: 0.06
 date:    Tue Jun 14 22:35:45 EST 2011
 changes:

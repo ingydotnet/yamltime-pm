@@ -8,51 +8,22 @@
 # - YAML
 
 # TODO:
-# - Sell to cdent and bsb ad toby and russell
+# - Sell to cdent and bsb and toby and russell
 # - Write::Excel reporting plugin
 # - Git plugin
 # - Add option to round numbers
 
-#-----------------------------------------------------------------------------#
-package YamlTime;
 use 5.008003;
-use Mouse;
-extends 'MouseX::App::Cmd';
+package YamlTime;
 
-our $VERSION = '0.06';
-
-use YamlTime::Conf;
-use YamlTime::Task;
-
-# Requires
-BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
-use Mouse 0.93;
-use MouseX::App::Cmd 0.08;
-use IO::All 0.41 ();
-use DateTime 0.70 ();
-use DateTime::Format::Natural 0.94 ();
-use File::ShareDir 1.03 ();
-use Template::Toolkit::Simple 0.13 ();
-use Template::Plugin::YAMLVal 0.10 ();
-use Term::ReadLine 1.04 ();
-use Text::CSV_XS 0.81 ();
-use YAML::XS 0.35 ();
-my $requires = "
-use Term::ReadLine::Gnu 1.20 ();
-";
-
-# Global pointer to the YamlTime::Conf singleton object.
-our $Conf;
-
-# App::Cmd help helpers
-use constant usage => 'YamlTime';
-use constant text => "yt command [<options>] [<arguments>]\n";
-use constant default_command => 'status';
+our $VERSION = '0.07';
 
 #-----------------------------------------------------------------------------#
 package YamlTime::Command;
 use Mouse;
-extends qw[MouseX::App::Cmd::Command];
+# extends qw[MouseX::App::Cmd::Command];
+
+use App::Cmd::Setup -command;
 
 use IO::All;
 use Cwd qw[cwd abs_path];
@@ -102,6 +73,42 @@ around usage => sub {
 };
 
 #-----------------------------------------------------------------------------#
+package YamlTime;
+use Mouse;
+# extends 'MouseX::App::Cmd';
+use App::Cmd::Setup -app;
+
+our $VERSION = '0.07';
+
+use YamlTime::Conf;
+use YamlTime::Task;
+
+# Requires
+BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
+use Mouse 0.93;
+use MouseX::App::Cmd 0.08;
+use IO::All 0.41 ();
+use DateTime 0.70 ();
+use DateTime::Format::Natural 0.94 ();
+use File::ShareDir 1.03 ();
+use Template::Toolkit::Simple 0.13 ();
+use Template::Plugin::YAMLVal 0.10 ();
+use Term::ReadLine 1.04 ();
+use Text::CSV_XS 0.81 ();
+use YAML::XS 0.35 ();
+my $requires = "
+use Term::ReadLine::Gnu 1.20 ();
+";
+
+# Global pointer to the YamlTime::Conf singleton object.
+our $Conf;
+
+# App::Cmd help helpers
+use constant usage => 'YamlTime';
+use constant text => "yt command [<options>] [<arguments>]\n";
+use constant default_command => 'status';
+
+#-----------------------------------------------------------------------------#
 # A role for time/tag range options
 #-----------------------------------------------------------------------------#
 package YamlTime::RangeOpts;
@@ -146,7 +153,8 @@ has tags => (
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::init;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Initialize a new YamlTime store directory';
 use constant usage_desc => 'yt init [--force]';
@@ -175,7 +183,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::new;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Create a new task and start the timer';
 use constant usage_desc => 'yt new ["Task description"]';
@@ -198,7 +207,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::stop;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Stop the timer on a running task';
 use constant usage_desc => 'yt stop';
@@ -219,7 +229,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::go;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Restart the timer on a task';
 use constant usage_desc => 'yt go [<task-id>]';
@@ -241,7 +252,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::status;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 with 'YamlTime::RangeOpts';
 
 use constant abstract => 'Show the status of a range of tasks';
@@ -273,7 +285,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::check;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 with 'YamlTime::RangeOpts';
 use IO::All;
 
@@ -313,7 +326,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::report;
 use Mouse;
-extends 'YamlTime::Command';
+YamlTime->import( -command );
+# extends 'YamlTime::Command';
 with 'YamlTime::RangeOpts';
 use Text::CSV_XS;
 use Cwd qw[abs_path];
@@ -361,7 +375,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::edit;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Edit a task\'s YAML in $EDITOR';
 use constant usage_desc => 'yt edit [<task-id>]';
@@ -378,7 +393,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::dump;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 use IO::All;
 
 use constant abstract => 'Print a task file to STDOUT';
@@ -394,7 +410,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::create;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Create a new task for a particular date/time';
 use constant usage_desc => 'yt create <new-task-id>';
@@ -417,7 +434,8 @@ sub execute {
 #-----------------------------------------------------------------------------#
 package YamlTime::Command::delete;
 use Mouse;
-extends qw[YamlTime::Command];
+YamlTime->import( -command );
+# extends qw[YamlTime::Command];
 
 use constant abstract => 'Delete an entry by task-id';
 use constant usage_desc => 'yt delete <task-id>';
