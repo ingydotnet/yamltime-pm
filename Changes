@@ -1,4 +1,9 @@
 ---
+version: 0.08
+date:    
+changes:
+- 0.07 was broken
+---
 version: 0.07
 date:    Mon Jun 27 08:59:13 EDT 2011
 changes:
