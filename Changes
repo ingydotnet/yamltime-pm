@@ -1,8 +1,9 @@
 ---
 version: 0.08
-date:    
+date:    Mon Jun 27 21:41:45 EDT 2011
 changes:
-- 0.07 was broken
+- 0.07 was broken. add test, and make it work
+- Now support YamlTime::Extension::Foo
 ---
 version: 0.07
 date:    Mon Jun 27 08:59:13 EDT 2011
