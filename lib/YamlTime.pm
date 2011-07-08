@@ -17,7 +17,7 @@
 use 5.008003;
 package YamlTime;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 # Requires
 BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
@@ -71,7 +71,7 @@ has _base => (
     },
 );
 
-# Not validating any args. Checking to working environment.
+# Not validating any args. Checking the working environment.
 sub validate_args {
     my ($self) = @_;
     my $base = $self->base;
@@ -395,6 +395,21 @@ sub execute {
     my $task = $self->get_task(@$args)
         or $self->error("No task to edit");
     exec $editor . " " . $task->id;
+}
+
+#-----------------------------------------------------------------------------#
+package YamlTime::Command::base;
+use Mouse;
+YamlTime->import( -command );
+extends qw[YamlTime::Command];
+use IO::All;
+
+use constant abstract => 'Print the YamlTime base directory to STDOUT';
+use constant usage_desc => 'yt base';
+
+sub execute {
+    my ($self, $opt, $args) = @_;
+    print $self->base . "\n";
 }
 
 #-----------------------------------------------------------------------------#

@@ -1,4 +1,11 @@
 ---
+version: 0.09
+date:    Fri Jul  8 00:18:25 EDT 2011
+changes:
+- Add base command
+- Fix 'go' math for adding hours/mins
+- Fix 'delete' command
+---
 version: 0.08
 date:    Mon Jun 27 21:41:45 EDT 2011
 changes:

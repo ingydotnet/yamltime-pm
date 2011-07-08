@@ -103,10 +103,22 @@ sub elapsed {
     $self->time =~ /^(\d+):(\d+)$/ or die;
     $hours += $1;
     $minutes += $2;
+    $hours += int($minutes / 60);
+    $minutes %= 60;
 
     my $time = sprintf "%d:%02d", $hours, $minutes;
     return $time;
 }
+
+sub delete {
+    my ($self) = @_;
+    my $id = $self->id;
+    if (-e '_' and readlink('_') eq $id) {
+        unlink('_');
+    }
+    unlink $id;
+}
+
 
 sub current {
     my ($self) = @_;
