@@ -17,7 +17,7 @@
 use 5.008003;
 package YamlTime;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 # Requires
 BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
@@ -26,13 +26,13 @@ use MouseX::App::Cmd 0.08;
 
 use Capture::Tiny 0.11 ();
 use DateTime 0.70 ();
-use DateTime::Format::Natural 0.94 ();
+use DateTime::Format::Natural 0.96 ();
 use File::ShareDir 1.03 ();
-use IO::All 0.41 ();
+use IO::All 0.43 ();
 use Template::Toolkit::Simple 0.13 ();
 use Template::Plugin::YAMLVal 0.10 ();
-use Term::ReadLine 1.04 ();
-use Text::CSV_XS 0.81 ();
+use Term::ReadLine 1.07 ();
+use Text::CSV_XS 0.82 ();
 use YAML::XS 0.35 ();
 my $requires = "
 use Term::ReadLine::Gnu 1.20 ();
@@ -65,7 +65,10 @@ has _base => (
     is => 'ro',
     reader => 'base',
     default => sub {
-        my $base = $ENV{YAMLTIME_BASE} ? $ENV{YAMLTIME_BASE} : '.';
+        my $base =
+            $ENV{YAMLTIME_BASE} ? $ENV{YAMLTIME_BASE} :
+            -d "$ENV{HOME}/.yamltime/" ? "$ENV{HOME}/.yamltime/" :
+            '.';
         $base =~ s!/+$!!;
         return abs_path $base;
     },
@@ -101,7 +104,7 @@ extends 'MouseX::App::Cmd';
 
 use Module::Pluggable
   require     => 1,
-  search_path => [ 'YamlTime::Extension' ];
+  search_path => [ 'YamlTime' ];
 YamlTime->plugins;
 
 use YamlTime::Conf;
@@ -113,7 +116,7 @@ our $Conf;
 # App::Cmd help helpers
 use constant usage => 'YamlTime';
 use constant text => "yt command [<options>] [<arguments>]\n";
-use constant default_command => 'status';
+use constant default_command => $ENV{YAMLTIME_DEFAULT_COMMAND} || 'status';
 
 #-----------------------------------------------------------------------------#
 # A role for time/tag range options
