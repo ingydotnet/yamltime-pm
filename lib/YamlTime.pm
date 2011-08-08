@@ -33,6 +33,7 @@ use Template::Toolkit::Simple 0.13 ();
 use Template::Plugin::YAMLVal 0.10 ();
 use Term::ReadLine 1.07 ();
 use Text::CSV_XS 0.82 ();
+use Text::ParseWords 3.27 ();
 use YAML::XS 0.35 ();
 my $requires = "
 use Term::ReadLine::Gnu 1.20 ();
@@ -76,6 +77,7 @@ has _base => (
 
 # Not validating any args. Checking the working environment.
 sub validate_args {
+    warn "validate_args";
     my ($self) = @_;
     my $base = $self->base;
     chdir $base
@@ -116,7 +118,11 @@ our $Conf;
 # App::Cmd help helpers
 use constant usage => 'YamlTime';
 use constant text => "yt command [<options>] [<arguments>]\n";
-use constant default_command => $ENV{YAMLTIME_DEFAULT_COMMAND} || 'status';
+
+sub default_args {
+    my $default = $ENV{YAMLTIME_DEFAULT_ARGS} or return [];
+    return [ Text::ParseWords::shellwords($default) ];
+}
 
 #-----------------------------------------------------------------------------#
 # A role for time/tag range options
@@ -275,6 +281,7 @@ yt status [--from=...] [--to=...]
 
 sub execute {
     my ($self, $opt, $args) = @_;
+    warn "status";
     my $total = 0;
     for my $task ($self->get_task_range(@$args)) {
         if ($task->elapsed =~ /^(\d+):(\d+)$/) {
