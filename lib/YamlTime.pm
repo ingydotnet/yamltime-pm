@@ -17,7 +17,7 @@
 use 5.008003;
 package YamlTime;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 # Requires
 BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
@@ -77,7 +77,6 @@ has _base => (
 
 # Not validating any args. Checking the working environment.
 sub validate_args {
-    warn "validate_args";
     my ($self) = @_;
     my $base = $self->base;
     chdir $base
@@ -281,7 +280,6 @@ yt status [--from=...] [--to=...]
 
 sub execute {
     my ($self, $opt, $args) = @_;
-    warn "status";
     my $total = 0;
     for my $task ($self->get_task_range(@$args)) {
         if ($task->elapsed =~ /^(\d+):(\d+)$/) {

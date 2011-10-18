@@ -1,4 +1,9 @@
 ---
+version: 0.11
+date:    Tue Oct 18 07:44:17 CDT 2011
+changes:
+- Make YAMLTIME_DEFAULT_COMMAND work.
+---
 version: 0.10
 date:    Thu Jul 28 14:22:37 CDT 2011
 changes:
