@@ -1,43 +1,22 @@
-##
-# name:      YamlTime
-# abstract:  YAML-based Personal Time Tracking App
-# author:    Ingy döt Net <ingy@cpan.org>
-# license:   perl
-# copyright: 2011
-# see:
-# - YAML
-# - YamlTime::Extension
-
 # TODO:
-# - Sell to cdent and bsb and toby and russell
 # - Write::Excel reporting plugin
 # - Git plugin
 # - Add option to round numbers
 
-use 5.008003;
 package YamlTime;
-
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 # Requires
 BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }
-use Mouse 0.93;
-use MouseX::App::Cmd 0.08;
+use Mouse;
+use MouseX::App::Cmd;
 
-use Capture::Tiny 0.11 ();
-use DateTime 0.70 ();
-use DateTime::Format::Natural 0.96 ();
-use File::ShareDir 1.03 ();
-use IO::All 0.43 ();
-use Template::Toolkit::Simple 0.13 ();
-use Template::Plugin::YAMLVal 0.10 ();
-use Term::ReadLine 1.07 ();
-use Text::CSV_XS 0.82 ();
-use Text::ParseWords 3.27 ();
-use YAML::XS 0.35 ();
-my $requires = "
-use Term::ReadLine::Gnu 1.20 ();
-";
+use Capture::Tiny;
+use DateTime::Format::Natural;
+use File::ShareDir;
+use Term::ReadLine;
+use Text::CSV_XS;
+use Text::ParseWords;
 
 #-----------------------------------------------------------------------------#
 # package YamlTime::Extension;
@@ -755,81 +734,3 @@ You may need to specify one.
 }
 
 1;
-
-=head1 SYNOPSIS
-
-    > yt help
-
-=head1 DESCRIPTION
-
-YamlTime is an application that allows you do your personal project time
-tracking from the command line. It saves your data in plain text YAML files.
-You can use a version control system (like git) to back up the data.
-
-YamlTime can supports multiple customers, multiple projects and multiple
-rates. It has reporting, spreadsheets, tagging, time/tag selection and 3rd
-party plugin modules.
-
-YamlTime comes with a command line app called C<yt> that does everything.
-
-=head1 COMMAND LINE USAGE
-
-The following commands are supported.
-
-    yt                  - Show current yt status of today's tasks
-    yt help             - Get help
-    yt help <command>   - Get help for a specific command
-    yt init             - Create a new YamlTime store
-    yt new              - Start a new task
-    yt stop             - Stop the current task
-    yt go               - Restart the current task
-    yt create <task>    - Create a new task for a specific date/time
-    yt edit <task>      - Edit a task's yaml file in $EDITOR
-    yt dump <task>      - Read a task file and print to STDOUT
-    yt delete <task>    - Delete a task file
-    yt check <tasks>    - Check the data in the range for errors
-    yt status <tasks>   - Show the current yt status
-    yt report <tasks>   - Create a report for a time period
-                          using a certain reporting style
-
-The <yt new> command will prompt you for some information. You can use tab
-completion for many of the fields. The values that you put in your config
-files are the values that are offered (and the only ones you can use).
-
-Some of the fields may be left blank. You can use C<yt edit> to fix up any
-task, later on.
-
-=head2 Options
-
-yt commands have the following options:
-
-=over
-
-=item --from=<date_string>
-
-Commands that need a time range, use this to set the start time. The default
-is the previous midnight. A human friendly string can be used, like: '3 days
-ago'.
-
-=item --to=<date_string>
-
-Commands that need a time range, use this to set the end time. The default
-is now.
-
-=item --tag=<tag_list>
-
-A comma separated list of tags. Matches tasks the match all the tags. You can
-specify more than once to combine ('or' logig) groups.
-
-=item --style=<report-style>
-
-This names a YamlTime reporting style. The default is CSV, which can be used
-as a spreadsheet.
-
-=back
-
-=head1 KUDOS
-
-Many thanks to the good people of Strategic Data in Melbourne Victoria
-Australia, for supporting me and this project. \o/
-

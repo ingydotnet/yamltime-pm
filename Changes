@@ -1,4 +1,9 @@
 ---
+version: 0.12
+date:    Tue Aug  5 11:40:36 PDT 2014
+changes:
+- Switch to Zilla-Dist
+---
 version: 0.11
 date:    Tue Oct 18 07:44:17 CDT 2011
 changes:
@@ -7,7 +12,7 @@ changes:
 version: 0.10
 date:    Thu Jul 28 14:22:37 CDT 2011
 changes:
-- Load plugins from YamlTime:: namespace instead of YamlTime::Extension
+- Load plugins from 'YamlTime::' namespace instead of YamlTime::Extension
 - Support $YAMLTIME_DEFAULT_COMMAND
 - Support ~/.yamltime/
 ---

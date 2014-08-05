@@ -1,0 +1,44 @@
+=meta: 0.0.1
+
+name: YamlTime
+version: 0.12
+abstract: YAML-based Personal Time Tracking App
+homepage: https://metacpan.org/release/YamlTime
+
+license: perl
+copyright: 2011-2014. Ingy döt Net.
+author:
+  name: Ingy döt Net
+  email: ingy@cpan.org
+  github: ingydotnet
+  twitter: ingydotnet
+  freenode: ingy
+  homepage: http://ingy.net
+
+requires:
+  perl: 5.8.1
+  App::Cmd::Setup: 0
+  Capture::Tiny: 0.11
+  DateTime: 0.70
+  DateTime::Format::Natural: 0.96
+  File::ShareDir: 1.03
+  IO::All: 0.43
+  Module::Pluggable: 0
+  Mouse: 0.93
+  MouseX::App::Cmd: 0.08
+  Template::Toolkit::Simple: 0.13
+  Template::Plugin::YAMLVal: 0.10
+  Term::ReadLine: 1.07
+  Term::ReadLine::Gnu: 1.20
+  Text::CSV_XS: 0.82
+  Text::ParseWords: 3.27
+  YAML::XS: 0.35
+
+devel:
+  git: https://github.com/ingydotnet/yamltime-pm
+  bug: https://github.com/ingydotnet/yamltime-pm/issues
+  irc: irc.freenode.net#pkg
+
+=travis:
+  type: perl
+  irc: irc.freenode.net#pkg
