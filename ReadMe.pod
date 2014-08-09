@@ -16,7 +16,7 @@ YamlTime - YAML-based Personal Time Tracking App
 
 =head1 SYNOPSIS
 
-      > yt help
+    > yt help
 
 =head1 DESCRIPTION
 
@@ -34,20 +34,20 @@ YamlTime comes with a command line app called C<yt> that does everything.
 
 The following commands are supported.
 
-      yt                  - Show current yt status of today's tasks
-      yt help             - Get help
-      yt help <command>   - Get help for a specific command
-      yt init             - Create a new YamlTime store
-      yt new              - Start a new task
-      yt stop             - Stop the current task
-      yt go               - Restart the current task
-      yt create <task>    - Create a new task for a specific date/time
-      yt edit <task>      - Edit a task's yaml file in $EDITOR
-      yt dump <task>      - Read a task file and print to STDOUT
-      yt delete <task>    - Delete a task file
-      yt check <tasks>    - Check the data in the range for errors
-      yt status <tasks>   - Show the current yt status
-      yt report <tasks>   - Create a report for a time period
+    yt                  - Show current yt status of today's tasks
+    yt help             - Get help
+    yt help <command>   - Get help for a specific command
+    yt init             - Create a new YamlTime store
+    yt new              - Start a new task
+    yt stop             - Stop the current task
+    yt go               - Restart the current task
+    yt create <task>    - Create a new task for a specific date/time
+    yt edit <task>      - Edit a task's yaml file in $EDITOR
+    yt dump <task>      - Read a task file and print to STDOUT
+    yt delete <task>    - Delete a task file
+    yt check <tasks>    - Check the data in the range for errors
+    yt status <tasks>   - Show the current yt status
+    yt report <tasks>   - Create a report for a time period
                             using a certain reporting style
 
 The <yt new> command will prompt you for some information. You can use tab
@@ -63,23 +63,23 @@ yt commands have the following options:
 
 =over
 
-=item --from=<date_string>
+=item C<< --from=<date_string> >>
 
 Commands that need a time range, use this to set the start time. The
 default is the previous midnight. A human friendly string can be used,
 like: '3 days ago'.
 
-=item --to=<date_string>
+=item C<< --to=<date_string> >>
 
 Commands that need a time range, use this to set the end time. The
 default is now.
 
-=item --tag=<tag_list>
+=item C<< --tag=<tag_list> >>
 
 A comma separated list of tags. Matches tasks the match all the tags. You can
 specify more than once to combine ('or' logig) groups.
 
-=item --style=<report-style>
+=item C<< --style=<report-style> >>
 
 This names a YamlTime reporting style. The default is CSV, which can be used
 as a spreadsheet.
