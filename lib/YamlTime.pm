@@ -4,7 +4,7 @@
 # - Add option to round numbers
 
 package YamlTime;
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 # Requires
 BEGIN { $ENV{PERL_RL} = 'Gnu o=0' }

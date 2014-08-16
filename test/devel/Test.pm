@@ -1,4 +1,4 @@
-package xt::Test;
+package Test;
 use strict;
 use base 'Exporter';
 use Cwd qw'cwd abs_path';

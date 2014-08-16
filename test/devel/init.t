@@ -1,7 +1,8 @@
+my $xt; use lib ($xt = -e 'xt' ? 'xt' : 'test/devel');
 use Test::More tests => 5;
-use xt::Test;
+use Test;
 
-my $dir = "xt/YT1";
+my $dir = "$xt/YT1";
 rmtree($dir);
 mkdir($dir) or die;
 chdir($dir) or die;
