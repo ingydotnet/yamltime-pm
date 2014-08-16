@@ -4,9 +4,9 @@ unconfigured: 1
 
 
 #                           READ THIS NOW!!!
-# 
+#
 # You should really go over all the config files now. It will help you
-# understand YamlTime much more. 
+# understand YamlTime much more.
 #
 # First you need to remove the 'unconfigured: 1' line above, and you really
 # should set your timezone below.
