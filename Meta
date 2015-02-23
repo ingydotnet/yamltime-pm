@@ -1,12 +1,12 @@
 =meta: 0.0.2
 
 name: YamlTime
-version: 0.18
+version: 0.19
 abstract: YAML-based Personal Time Tracking App
 homepage: https://metacpan.org/release/YamlTime
 language: perl
 license: perl
-copyright: 2011-2014
+copyright: 2011-2015
 
 author:
   name: Ingy döt Net

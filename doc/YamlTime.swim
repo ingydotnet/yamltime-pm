@@ -1,9 +1,4 @@
-YamlTime
-========
-
-YAML-based Personal Time Tracking App
-
-<badge travis coveralls ingydotnet/yamltime-pm>
+<<<cpan-head>>>
 
 = Synopsis
 
@@ -78,15 +73,4 @@ yt commands have the following options:
 Many thanks to the good people of Strategic Data in Melbourne Victoria
 Australia, for supporting me and this project. \o/
 
-= Author
-
-Ingy döt Net <ingy@cpan.org>
-
-= Copyright
-
-Copyright 2011-2014. Ingy döt Net.
-
-This program is free software; you can redistribute it and/or modify it under
-the same terms as Perl itself.
-
-See http://www.perl.com/perl/misc/Artistic.html
+<<<cpan-tail>>>
